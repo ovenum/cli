@@ -594,6 +594,17 @@ class CLI
 			]
 		]);
 
+		// add path argument. It is already applied in bin/kirby
+		// before Kirby is loaded; registering it here makes the
+		// parser consume its value and lists it in the usage
+		$this->climate->arguments->add([
+			'path' => [
+				'description' => 'Path to the Kirby installation',
+				'prefix'      => 'p',
+				'longPrefix'  => 'path'
+			]
+		]);
+
 		// add help argument
 		$this->climate->arguments->add([
 			'help' => [

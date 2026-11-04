@@ -2,6 +2,9 @@
 
 namespace Kirby\CLI;
 
+use InvalidArgumentException;
+use League\CLImate\Argument\Manager;
+
 /**
  * Tries to load the kirby index.php
  */
@@ -61,4 +64,68 @@ function index(): string|null
 	}
 
 	return null;
+}
+
+/**
+ * Resolves the Kirby installation path from
+ * the --path/-p option or the KIRBY_PATH env variable.
+ * Returns null if neither one is given.
+ *
+ * @throws InvalidArgumentException if the path is empty or does not exist
+ */
+function path(array $argv): string|null
+{
+	$arguments = new Manager();
+	$arguments->add([
+		'path' => [
+			'prefix'     => 'p',
+			'longPrefix' => 'path'
+		],
+		'quiet' => [
+			'longPrefix' => 'quiet',
+			'noValue'    => true
+		],
+		'debug' => [
+			'prefix'     => 'd',
+			'longPrefix' => 'debug',
+			'noValue'    => true
+		],
+		'help' => [
+			'prefix'     => 'h',
+			'longPrefix' => 'help',
+			'noValue'    => true
+		]
+	]);
+
+	$arguments->parse($argv);
+
+	if ($arguments->provided('path') === true) {
+		$path = $arguments->get('path');
+
+		if ($path === '') {
+			throw new InvalidArgumentException('The --path parameter cannot be empty when provided.');
+		}
+	} else {
+		$path = getenv('KIRBY_PATH');
+
+		if ($path === false || $path === '') {
+			return null;
+		}
+	}
+
+	// expand a leading tilde; the shell only does that
+	// at the start of a word, so --path=~/site arrives literally
+	if ($path === '~' || str_starts_with($path, '~/') === true) {
+		$path = getenv('HOME') . substr($path, 1);
+	}
+
+	// Resolve relative path against the current working directory.
+	// It will return false for missing dirs.
+	$resolved = realpath($path);
+
+	if ($resolved === false || is_dir($resolved) === false) {
+		throw new InvalidArgumentException('The path "' . $path . '" does not exist.');
+	}
+
+	return $resolved;
 }

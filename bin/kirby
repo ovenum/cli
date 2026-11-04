@@ -3,10 +3,27 @@
 
 namespace Kirby\CLI;
 
+use RuntimeException;
+use Throwable;
+
 // load dependencies
 require_once $_composer_autoload_path ?? __DIR__ . '/../vendor/autoload.php';
 
 require_once __DIR__ . '/../bootstrap.php';
+
+// switch to the installation given via --path or KIRBY_PATH
+// before Kirby is located. This runs before CLImate exists,
+// so errors go straight to STDERR
+try {
+	if ($path = path($argv)) {
+		if (@chdir($path) === false) {
+			throw new RuntimeException('The path "' . $path . '" is not accessible.');
+		}
+	}
+} catch (Throwable $e) {
+	fwrite(STDERR, $e->getMessage() . PHP_EOL);
+	exit(1);
+}
 
 // try to load the kirby instance
 bootstrap();

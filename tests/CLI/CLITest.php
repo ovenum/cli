@@ -7,6 +7,7 @@ namespace Kirby\CLI;
 use Exception;
 use League\CLImate\CLImate;
 use PHPUnit\Framework\Attributes\CoversClass;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 #[CoversClass(CLI::class)]
 class CLITest extends TestCase
@@ -18,11 +19,21 @@ class CLITest extends TestCase
 	 */
 	protected function runBinary(string ...$args): array
 	{
+		return $this->runBinaryWithEnv([], ...$args);
+	}
+
+	/**
+	 * Same as runBinary(), but with additional
+	 * environment variables for the subprocess
+	 */
+	protected function runBinaryWithEnv(array $env, string ...$args): array
+	{
 		$process = proc_open(
 			[PHP_BINARY, dirname(__DIR__, 2) . '/bin/kirby', ...$args],
 			[1 => ['pipe', 'w'], 2 => ['redirect', 1]],
 			$pipes,
-			__DIR__ . '/fixtures'
+			__DIR__ . '/fixtures',
+			[...getenv(), ...$env]
 		);
 
 		$output = stream_get_contents($pipes[1]);
@@ -69,6 +80,13 @@ class CLITest extends TestCase
 		$this->assertSame($expected, $commands);
 	}
 
+	public function testCommandWithEmptyPath(): void
+	{
+		[$status, $output] = $this->runBinary('roots', '--path=');
+		$this->assertSame(1, $status);
+		$this->assertSame('The --path parameter cannot be empty when provided.' . PHP_EOL, $output);
+	}
+
 	public function testCommandWithError(): void
 	{
 		[$status, $output] = $this->runBinary('fail');
@@ -89,6 +107,43 @@ class CLITest extends TestCase
 		[$status, $output] = $this->runBinary('does-not-exist');
 		$this->assertSame(1, $status);
 		$this->assertStringContainsString('The command does not exist', $output);
+	}
+
+	public function testCommandWithMissingPath(): void
+	{
+		[$status, $output] = $this->runBinary('roots', '--path', '/does/not/exist');
+		$this->assertSame(1, $status);
+		$this->assertSame('The path "/does/not/exist" does not exist.' . PHP_EOL, $output);
+	}
+
+	public function testCommandWithPathEnv(): void
+	{
+		[$status, $output] = $this->runBinaryWithEnv(
+			['KIRBY_PATH' => __DIR__ . '/fixtures/bootstrap/b'],
+			'roots'
+		);
+		$this->assertSame(0, $status);
+		$this->assertStringContainsString('"' . __DIR__ . '/fixtures/bootstrap/b/commands"', $output);
+	}
+
+	public static function pathOptionProvider(): array
+	{
+		return [
+			// long option with equals sign
+			[['roots', '--path=bootstrap/a']],
+			// long option with space
+			[['roots', '--path', 'bootstrap/a']],
+			// short option
+			[['roots', '-p', 'bootstrap/a']],
+		];
+	}
+
+	#[DataProvider('pathOptionProvider')]
+	public function testCommandWithPathOption(array $args): void
+	{
+		[$status, $output] = $this->runBinary(...$args);
+		$this->assertSame(0, $status);
+		$this->assertStringContainsString('"' . __DIR__ . '/fixtures/bootstrap/a/commands"', $output);
 	}
 
 	public function testDir(): void
