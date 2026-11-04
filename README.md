@@ -153,6 +153,22 @@ To load a custom environment config for a particular host, you can set an env va
 env KIRBY_HOST=production.com kirby mycommand
 ```
 
+### Running commands for another installation
+
+By default, the CLI looks for the Kirby installation in the current working directory. Use the `-p` or `--path` argument to run a command for an installation somewhere else, without changing the directory first:
+
+```bash
+kirby clear:cache --path /var/www/site
+```
+
+This works exactly like `cd /var/www/site && kirby clear:cache`. The path can be absolute or relative to the current directory. Alternatively, set the `KIRBY_PATH` env variable, which is handy for deploy scripts and cron jobs:
+
+```bash
+env KIRBY_PATH=/var/www/site kirby clear:cache
+```
+
+If both are given, the `--path` argument wins.
+
 ## Command plugins
 
 Your Kirby plugins can define their own set of commands: https://getkirby.com/docs/reference/plugins/extensions/commands
